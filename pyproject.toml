@@ -1,0 +1,28 @@
+[tool.black]
+line-length = 120
+
+[tool.isort]
+profile = "black" 
+
+[tool.poetry]
+name = "stintmanager"
+version = "0.1.0"
+description = ""
+authors = ["Francis Genet <francis.genet@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+Django = "^4.0.6"
+djangorestframework = "^3.13.1"
+psycopg2 = "^2.9.3"
+
+[tool.poetry.dev-dependencies]
+django-extensions = "^3.2.0"
+ipdb = "^0.13.9"
+flake8 = "^4.0.1"
+black = "^22.6.0"
+isort = "^5.10.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

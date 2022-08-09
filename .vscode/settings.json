@@ -1,0 +1,22 @@
+{
+    "python.linting.flake8Enabled": true,
+    "python.linting.enabled": true,
+    "python.linting.flake8Path": "/Users/frifri/Library/Caches/pypoetry/virtualenvs/stintmanager-4nIo444A-py3.9/bin/flake8",
+    "editor.rulers": [
+        80
+    ],
+    "python.formatting.provider": "black",
+    "python.formatting.blackPath": "/Users/frifri/Library/Caches/pypoetry/virtualenvs/stintmanager-4nIo444A-py3.9/bin/black",
+    "editor.formatOnSave": true,
+    "python.autoComplete.extraPaths": [
+        "/Users/frifri/Library/Caches/pypoetry/virtualenvs/stintmanager-4nIo444A-py3.9/lib/python3.9/site-packages/"
+    ],
+    "python.analysis.extraPaths": [
+        "/Users/frifri/Library/Caches/pypoetry/virtualenvs/stintmanager-4nIo444A-py3.9/lib/python3.9/site-packages/"
+    ],
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    }
+}
