@@ -39,9 +39,6 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_extensions",
     "common",
-    "race",
-    "team",
-    "race_calendar",
     "stintmanager",
 ]
 
