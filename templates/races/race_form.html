@@ -37,8 +37,13 @@
                     {% endfor %}
                     
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
-                        <a href="{% url 'races:list' %}" class="btn btn-secondary me-md-2">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Create Race</button>
+                        {% if is_edit %}
+                            <a href="{% url 'races:detail' race.id %}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Update Race</button>
+                        {% else %}
+                            <a href="{% url 'races:list' %}" class="btn btn-secondary me-md-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Race</button>
+                        {% endif %}
                     </div>
                 </form>
             </div>

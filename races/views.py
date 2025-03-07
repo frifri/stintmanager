@@ -1,6 +1,6 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from .models import Race
+from .models import Race, RaceDriver, DrivingAssignment
 from .forms import RaceForm
 from django.contrib import messages
 
@@ -46,3 +46,81 @@ def race_create(request):
         form = RaceForm()
     
     return render(request, 'races/race_form.html', {'form': form, 'title': 'Create Race'})
+
+
+@login_required
+def race_detail(request, pk):
+    """View detailed information about a specific race."""
+    race = get_object_or_404(Race, pk=pk)
+    
+    # Check if user is a driver in this race
+    user_driver = RaceDriver.objects.filter(race=race, user=request.user).first()
+    
+    # Get all drivers for this race
+    drivers = RaceDriver.objects.filter(race=race).select_related('user')
+    
+    # Get all driving assignments for this race, ordered by start time
+    assignments = DrivingAssignment.objects.filter(
+        race_driver__race=race
+    ).select_related('race_driver', 'race_driver__user').order_by('start_time')
+    
+    # Check if user is the creator of the race
+    is_creator = race.created_by == request.user
+    
+    context = {
+        'race': race,
+        'user_driver': user_driver,
+        'drivers': drivers,
+        'assignments': assignments,
+        'is_creator': is_creator,
+        'can_join': not user_driver and not is_creator,
+    }
+    return render(request, 'races/race_detail.html', context)
+
+
+@login_required
+def race_edit(request, pk):
+    """View to edit an existing race."""
+    race = get_object_or_404(Race, pk=pk)
+    
+    # Check if user is allowed to edit this race
+    if race.created_by != request.user:
+        messages.error(request, "You don't have permission to edit this race.")
+        return redirect('races:detail', pk=race.pk)
+    
+    if request.method == 'POST':
+        form = RaceForm(request.POST, instance=race)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Race updated successfully!')
+            return redirect('races:detail', pk=race.pk)
+    else:
+        form = RaceForm(instance=race)
+    
+    return render(request, 'races/race_form.html', {
+        'form': form, 
+        'title': 'Edit Race',
+        'is_edit': True,
+        'race': race
+    })
+
+
+@login_required
+def race_delete(request, pk):
+    """View to delete an existing race."""
+    race = get_object_or_404(Race, pk=pk)
+    
+    # Check if user is allowed to delete this race
+    if race.created_by != request.user:
+        messages.error(request, "You don't have permission to delete this race.")
+        return redirect('races:detail', pk=race.pk)
+    
+    if request.method == 'POST':
+        # Store the name for the success message
+        race_name = race.name
+        race.delete()
+        messages.success(request, f'Race "{race_name}" has been deleted.')
+        return redirect('races:list')
+    
+    # If it's a GET request, redirect to detail page (the delete should always be POST)
+    return redirect('races:detail', pk=race.pk)

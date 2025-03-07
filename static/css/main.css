@@ -13,3 +13,42 @@ body {
     min-height: 100vh;
     padding-bottom: 60px;
 }
+
+/* Race detail styles */
+.timeline {
+    position: relative;
+    height: 100px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+  
+.timeline-slot {
+    position: absolute;
+    height: 100%;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: white;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    border-radius: 2px;
+}
+  
+.assignment-detail {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+  
+.availability-window {
+    background-color: #d1e7dd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 10px;
+}

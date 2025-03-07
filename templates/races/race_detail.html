@@ -1,0 +1,284 @@
+{% extends "partials/base.html" %}
+{% load static %}
+{% load race_filters %}
+
+{% block title %}{{ race.name }} - StintManager{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1>{{ race.name }}</h1>
+    <h5 class="text-muted">{{ race.track_name }}</h5>
+  </div>
+  <div class="col-md-4 text-end">
+    {% if is_creator %}
+      <a href="{% url 'races:edit' race.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-pencil"></i> Edit Race
+      </a>
+      <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteRaceModal">
+        <i class="bi bi-trash"></i> Delete
+      </button>
+    {% elif can_join %}
+      <form method="post" action="#">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-person-plus"></i> Join Race
+        </button>
+      </form>
+    {% elif user_driver %}
+      <span class="badge bg-success">You're participating</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-8">
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Race Details</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Start Time:</strong> {{ race.start_time|date:"F j, Y, H:i" }}</p>
+            <p><strong>End Time:</strong> {{ race.end_time|date:"F j, Y, H:i" }}</p>
+            <p><strong>Duration:</strong> {{ race.duration_hours }} hours</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Track:</strong> {{ race.track_name }}</p>
+            <p><strong>Avg. Lap Time:</strong> {{ race.avg_lap_time_seconds }} seconds</p>
+            <p><strong>Organizer:</strong> {{ race.created_by.get_full_name }}</p>
+          </div>
+        </div>
+        
+        {% if race.description %}
+        <div class="mt-3">
+          <h6>Description</h6>
+          <p>{{ race.description|linebreaks }}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    
+    {% if drivers %}
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Drivers ({{ drivers.count }})</h5>
+        {% if is_creator %}
+        <a href="#" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-person-plus"></i> Invite Driver
+        </a>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>Driver</th>
+                <th>Timezone</th>
+                <th>Availability</th>
+                {% if is_creator %}
+                <th>Actions</th>
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for driver in drivers %}
+              <tr>
+                <td>
+                  {{ driver.user.get_full_name }}
+                  {% if driver.user == request.user %}
+                  <span class="badge bg-secondary">You</span>
+                  {% endif %}
+                </td>
+                <td>{{ driver.timezone }}</td>
+                <td>
+                  {% with window_count=driver.availability_windows.count %}
+                  {% if window_count > 0 %}
+                  {{ window_count }} window{{ window_count|pluralize }}
+                  {% else %}
+                  <span class="text-warning">Not set</span>
+                  {% endif %}
+                  {% endwith %}
+                </td>
+                {% if is_creator %}
+                <td>
+                  <button class="btn btn-sm btn-outline-primary">Assign Stint</button>
+                </td>
+                {% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    
+    {% if assignments %}
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Driving Schedule</h5>
+      </div>
+      <div class="card-body">
+        <!-- Simple timeline visualization -->
+        <div class="timeline mb-4">
+            {% for assignment in assignments %}
+            {% with start_diff=assignment.start_time|date:'U'|add:'-'|add:race.start_time|date:'U' %}
+            {% with race_seconds=race.duration_hours|multiply:3600 %}
+            {% with start_percent=start_diff|divisibleby:race_seconds|multiply:100 %}
+            {% with width_percent=assignment.duration_hours|multiply:3600|divisibleby:race_seconds|multiply:100 %}
+            <div class="timeline-slot" 
+                 style="left: {{ start_percent }}%; 
+                        width: {{ width_percent }}%; 
+                        background-color: #0d6efd;">
+              {{ assignment.race_driver.user.get_full_name }}
+            </div>
+            {% endwith %}
+            {% endwith %}
+            {% endwith %}
+            {% endwith %}
+            {% endfor %}
+        </div>
+        
+        <h6>Driving Assignments</h6>
+        {% for assignment in assignments %}
+        <div class="assignment-detail">
+          <div class="d-flex justify-content-between">
+            <div>
+              <strong>{{ assignment.race_driver.user.get_full_name }}</strong>
+              {% if assignment.race_driver.user == request.user %}
+              <span class="badge bg-secondary">You</span>
+              {% endif %}
+            </div>
+            <div>{{ assignment.duration_hours|floatformat:1 }} hours</div>
+          </div>
+          <div class="text-muted">
+            {{ assignment.start_time|date:"M d, H:i" }} - {{ assignment.end_time|date:"M d, H:i" }}
+          </div>
+          {% if assignment.notes %}
+          <div class="mt-2">{{ assignment.notes }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card mb-4">
+      <div class="card-body text-center">
+        <h6>No driving assignments yet</h6>
+        {% if is_creator %}
+        <p>Start planning your race by assigning driving stints to your drivers.</p>
+        <button class="btn btn-primary">Create Assignments</button>
+        {% else %}
+        <p>The race organizer hasn't created any driving assignments yet.</p>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+  
+  <div class="col-md-4">
+    {% if user_driver %}
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">Your Availability</h5>
+        <button class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-plus-circle"></i> Add
+        </button>
+      </div>
+      <div class="card-body">
+        {% with windows=user_driver.availability_windows.all %}
+        {% if windows %}
+        {% for window in windows %}
+        <div class="availability-window">
+          <div class="d-flex justify-content-between">
+            <div>{{ window.start_time|date:"M d, H:i" }}</div>
+            <div>{{ window.end_time|date:"M d, H:i" }}</div>
+          </div>
+          <div class="mt-2 d-flex justify-content-end">
+            <button class="btn btn-sm btn-outline-secondary me-2">Edit</button>
+            <button class="btn btn-sm btn-outline-danger">Remove</button>
+          </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center">
+          <p>You haven't set any availability windows yet.</p>
+          <button class="btn btn-primary">Set Availability</button>
+        </div>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+    
+    <div class="card mb-4">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Your Assignments</h5>
+      </div>
+      <div class="card-body">
+        {% with user_assignments=assignments %}
+        {% if user_assignments %}
+        {% for assignment in user_assignments %}
+        {% if assignment.race_driver.user == request.user %}
+        <div class="assignment-detail">
+          <div>{{ assignment.start_time|date:"M d, H:i" }} - {{ assignment.end_time|date:"M d, H:i" }}</div>
+          <div class="text-muted">{{ assignment.duration_hours|floatformat:1 }} hours</div>
+          {% if assignment.notes %}
+          <div class="mt-2">{{ assignment.notes }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <p class="text-center">You don't have any driving assignments yet.</p>
+        {% endif %}
+        {% endwith %}
+      </div>
+    </div>
+    {% endif %}
+    
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">Race Time Information</h5>
+      </div>
+      <div class="card-body">
+        <p><i class="bi bi-calendar-event"></i> <strong>Start:</strong> {{ race.start_time|date:"F j, Y" }}</p>
+        <p><i class="bi bi-clock"></i> <strong>Start Time:</strong> {{ race.start_time|date:"H:i" }}</p>
+        <p><i class="bi bi-hourglass-split"></i> <strong>Duration:</strong> {{ race.duration_hours }} hours</p>
+        <p><i class="bi bi-calendar-check"></i> <strong>End:</strong> {{ race.end_time|date:"F j, Y, H:i" }}</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if is_creator %}
+<!-- Delete Race Modal -->
+<div class="modal fade" id="deleteRaceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Delete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong>{{ race.name }}</strong>?</p>
+        <p class="text-danger">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{% url 'races:delete' race.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Delete Race</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/race-detail.js' %}"></script>
+{% endblock %}

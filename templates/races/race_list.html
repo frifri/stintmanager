@@ -40,7 +40,7 @@
                         <td>{{ race.start_time|date:"M d, Y H:i" }}</td>
                         <td>{{ race.duration_hours }} hours</td>
                         <td>
-                            <a href="#" class="btn btn-sm btn-outline-primary">View Details</a>
+                            <a href="{% url 'races:detail' race.id %}" class="btn btn-sm btn-outline-primary">View Details</a>
                         </td>
                     </tr>
                     {% endfor %}
@@ -77,9 +77,16 @@
                         <td>{{ race.duration_hours }} hours</td>
                         <td>
                             <div class="btn-group">
-                                <a href="#" class="btn btn-sm btn-outline-primary">View</a>
-                                <a href="#" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                <button type="button" class="btn btn-sm btn-outline-danger">Delete</button>
+                                <a href="{% url 'races:detail' race.id %}" class="btn btn-sm btn-outline-primary">View</a>
+                                <a href="{% url 'races:edit' race.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                <button type="button" 
+                                        class="btn btn-sm btn-outline-danger delete-race" 
+                                        data-bs-toggle="modal" 
+                                        data-bs-target="#deleteRaceModal"
+                                        data-race-id="{{ race.id }}"
+                                        data-race-name="{{ race.name }}">
+                                    Delete
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -118,6 +125,7 @@
                         <td>{{ race.duration_hours }} hours</td>
                         <td>{{ race.created_by.get_full_name }}</td>
                         <td>
+                            <a href="{% url 'races:detail' race.id %}" class="btn btn-sm btn-outline-primary">View Details</a>
                             <a href="#" class="btn btn-sm btn-success">Join Race</a>
                         </td>
                     </tr>
@@ -138,4 +146,27 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Delete Race Modal -->
+<div class="modal fade" id="deleteRaceModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Delete</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete <strong id="raceNameToDelete"></strong>?</p>
+        <p class="text-danger">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form id="deleteRaceForm" method="post" action="">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger">Delete Race</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
