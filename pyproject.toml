@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "An application to manage driver stints for motorsports endurance"
 authors = ["Francis Genet"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = "^3.12"
