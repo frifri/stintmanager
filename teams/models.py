@@ -6,10 +6,12 @@ from races.models import Race, RaceDriver
 
 class Team(UUIDModel):
     name = models.CharField(max_length=100)
-    race = models.OneToOneField(
-        Race,
+    race = models.ForeignKey(
+        'races.Race',
         on_delete=models.CASCADE,
-        related_name='team'
+        null=True,  # Allow null values
+        blank=True,  # Allow blank in forms
+        related_name='teams'  # Assuming you want to access teams from race
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,

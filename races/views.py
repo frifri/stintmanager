@@ -49,7 +49,6 @@ def race_create(request):
     return render(request, 'races/race_form.html', {'form': form, 'title': 'Create Race'})
 
 
-# races/views.py - Add this to the race_detail view
 @login_required
 def race_detail(request, pk):
     """View detailed information about a specific race."""
@@ -59,17 +58,23 @@ def race_detail(request, pk):
     user_driver = RaceDriver.objects.filter(race=race, user=request.user).first()
     
     # Check if race has a team
+    team = None
+    has_team = False
     try:
-        team = race.team
-        has_team = True
-    except Team.DoesNotExist:
+        # Change this line to get teams using the correct related_name
+        teams = race.teams.all()  # Assuming related_name='teams' in the model
+        if teams.exists():
+            team = teams.first()
+            has_team = True
+    except AttributeError:
+        # Handle the case where the relationship doesn't exist yet
         team = None
         has_team = False
     
     # Get team members if team exists
     team_members = TeamMembership.objects.filter(team=team).select_related('user') if team else []
     
-    # Get all drivers for this race
+    # Get all drivers for this race - this was missing
     drivers = RaceDriver.objects.filter(race=race).select_related('user')
     
     # Get all driving assignments for this race

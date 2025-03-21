@@ -103,7 +103,7 @@
                         <td>{{ race.track_name }}</td>
                         <td>{{ race.start_time|date:"M d, Y H:i" }}</td>
                         <td>
-                            <a href="{% url 'teams:list' race.id %}" class="btn btn-sm btn-outline-primary">Find Teams</a>
+                            <a href="{% url 'teams:dashboard' race.id %}" class="btn btn-sm btn-outline-primary">Find Teams</a>
                         </td>
                     </tr>
                     {% endfor %}

@@ -27,7 +27,7 @@ def team_detail(request, pk):
     
     # Find races the team could enter
     available_races = Race.objects.exclude(
-        team_entries__team=team
+        teams=team
     ).filter(
         start_time__gt=timezone.now()  # Only future races
     ).order_by('start_time')
@@ -104,7 +104,7 @@ def team_delete(request, pk):
         race_id = race.pk
         team.delete()
         messages.success(request, f'Team "{team_name}" deleted successfully!')
-        return redirect('teams:list', race_id=race_id)
+        return redirect('teams:dashboard', race_id=race_id)
     
     return redirect('teams:detail', pk=team.pk)
 
@@ -231,7 +231,6 @@ def team_dashboard(request):
 
 @login_required
 def team_create(request):
-    """Create a new team"""
     if request.method == 'POST':
         form = TeamForm(request.POST)
         if form.is_valid():
@@ -239,7 +238,7 @@ def team_create(request):
             team.owner = request.user
             team.save()
             
-            # Automatically add creator as a team member with "Team Manager" role
+            # Automatically add creator as a team member
             TeamMembership.objects.create(
                 team=team,
                 user=request.user,
@@ -252,7 +251,7 @@ def team_create(request):
         form = TeamForm()
     
     return render(request, 'teams/team_form.html', {
-        'form': form, 
+        'form': form,
         'title': 'Create Team'
     })
 
