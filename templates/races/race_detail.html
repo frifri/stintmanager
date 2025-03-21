@@ -5,30 +5,27 @@
 {% block title %}{{ race.name }} - StintManager{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-  <div class="col-md-8">
-    <h1>{{ race.name }}</h1>
-    <h5 class="text-muted">{{ race.track_name }}</h5>
-  </div>
-  <div class="col-md-4 text-end">
-    {% if is_creator %}
-      <a href="{% url 'races:edit' race.id %}" class="btn btn-outline-secondary">
-        <i class="bi bi-pencil"></i> Edit Race
-      </a>
-      <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteRaceModal">
-        <i class="bi bi-trash"></i> Delete
+<div class="col-md-4 text-end">
+  <a href="{% url 'teams:list' race.id %}" class="btn btn-outline-primary me-2">
+      <i class="bi bi-people"></i> Teams
+  </a>
+  {% if is_creator %}
+    <a href="{% url 'races:edit' race.id %}" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil"></i> Edit Race
+    </a>
+    <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteRaceModal">
+      <i class="bi bi-trash"></i> Delete
+    </button>
+  {% elif can_join %}
+    <form method="post" action="#">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-person-plus"></i> Join Race
       </button>
-    {% elif can_join %}
-      <form method="post" action="#">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-success">
-          <i class="bi bi-person-plus"></i> Join Race
-        </button>
-      </form>
-    {% elif user_driver %}
-      <span class="badge bg-success">You're participating</span>
-    {% endif %}
-  </div>
+    </form>
+  {% elif user_driver %}
+    <span class="badge bg-success">You're participating</span>
+  {% endif %}
 </div>
 
 <div class="row">

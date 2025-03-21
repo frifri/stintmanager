@@ -39,4 +39,5 @@ urlpatterns = [
          auth_views.PasswordResetCompleteView.as_view(template_name='auth/password_reset_complete.html'), 
          name='password_reset_complete'),
     path('races/', include('races.urls')),
+    path('teams/', include('teams.urls')),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
