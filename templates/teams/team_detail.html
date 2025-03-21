@@ -106,52 +106,36 @@
                 </button>
                 {% endif %}
             </div>
-            <div class="card-body">
-                {% if race_entries %}
-                <div class="table-responsive">
-                    <table class="table table-hover">
-                        <thead>
-                            <tr>
-                                <th>Race</th>
-                                <th>Track</th>
-                                <th>Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for entry in race_entries %}
-                            <tr>
-                                <td>{{ entry.race.name }}</td>
-                                <td>{{ entry.race.track_name }}</td>
-                                <td>{{ entry.race.start_time|date:"M d, Y H:i" }}</td>
-                                <td>
-                                    <a href="{% url 'races:detail' entry.race.id %}" class="btn btn-sm btn-outline-primary">
-                                        View Race
-                                    </a>
-                                    {% if is_owner %}
-                                    <form method="post" action="{% url 'teams:withdraw' entry.id %}" style="display: inline;">
-                                        {% csrf_token %}
-                                        <button type="submit" class="btn btn-sm btn-outline-danger">
-                                            Withdraw
-                                        </button>
-                                    </form>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Race</h5>
                 </div>
-                {% else %}
-                <p class="text-center">This team isn't entered in any races yet.</p>
-                {% if is_owner and available_races %}
-                <div class="text-center mt-3">
-                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enterRaceModal">
-                        Enter a Race
-                    </button>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Race</th>
+                                    <th>Track</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>{{ team.race.name }}</td>
+                                    <td>{{ team.race.track_name }}</td>
+                                    <td>{{ team.race.start_time|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'races:detail' team.race.id %}" class="btn btn-sm btn-outline-primary">
+                                            View Race
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                {% endif %}
-                {% endif %}
             </div>
         </div>
     </div>
@@ -180,40 +164,6 @@
         </div>
     </div>
 </div>
-
-{% if is_owner and available_races %}
-<!-- Enter Race Modal -->
-<div class="modal fade" id="enterRaceModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Enter Race</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="post" action="{% url 'teams:enter_race' team.id %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="race" class="form-label">Select Race</label>
-                        <select name="race_id" id="race" class="form-control" required>
-                            <option value="">-- Select a race --</option>
-                            {% for race in available_races %}
-                            <option value="{{ race.id }}">
-                                {{ race.name }} - {{ race.start_time|date:"M d, Y H:i" }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Enter Race</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 
 {% if is_owner %}
 <!-- Add Member Modal -->

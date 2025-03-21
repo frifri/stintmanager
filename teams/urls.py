@@ -13,10 +13,6 @@ urlpatterns = [
     path('<uuid:team_id>/members/add/', views.add_member, name='add_member'),
     path('membership/<uuid:membership_id>/remove/', views.remove_member, name='remove_member'),
     path('<uuid:team_id>/join/', views.join_team, name='join_team'),
-    
-    # Race entries
-    path('<uuid:team_id>/races/enter/', views.enter_race, name='enter_race'),
-    path('entry/<uuid:entry_id>/withdraw/', views.withdraw_from_race, name='withdraw'),
 
     path('race/<uuid:race_id>/', views.race_teams, name='race_teams'),
 ]
