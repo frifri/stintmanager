@@ -7,26 +7,18 @@
 <div class="row mb-4">
     <div class="col-md-8">
         <h1>{{ team.name }}</h1>
-        <h5 class="text-muted">{{ race.name }} - {{ race.track_name }}</h5>
     </div>
     <div class="col-md-4 text-end">
-        <a href="{% url 'teams:list' race.id %}" class="btn btn-outline-secondary">
+        <a href="{% url 'teams:list' %}" class="btn btn-outline-secondary">
             <i class="bi bi-arrow-left"></i> Back to Teams
         </a>
-        {% if can_manage %}
+        {% if is_owner %}
         <a href="{% url 'teams:edit' team.id %}" class="btn btn-outline-secondary">
             <i class="bi bi-pencil"></i> Edit
         </a>
         <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteTeamModal">
             <i class="bi bi-trash"></i> Delete
         </button>
-        {% elif can_join %}
-        <form method="post" action="{% url 'teams:join' team.id %}">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success">
-                <i class="bi bi-person-plus"></i> Join Team
-            </button>
-        </form>
         {% endif %}
     </div>
 </div>
@@ -49,10 +41,10 @@
             </div>
         </div>
 
-        <div class="card">
+        <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Team Members ({{ memberships.count }})</h5>
-                {% if can_manage and available_drivers %}
+                {% if is_owner %}
                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
                     <i class="bi bi-person-plus"></i> Add Member
                 </button>
@@ -64,10 +56,10 @@
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Driver</th>
+                                <th>Member</th>
                                 <th>Role</th>
                                 <th>Joined</th>
-                                {% if can_manage %}
+                                {% if is_owner %}
                                 <th>Actions</th>
                                 {% endif %}
                             </tr>
@@ -76,14 +68,14 @@
                             {% for membership in memberships %}
                             <tr>
                                 <td>
-                                    {{ membership.driver.user.get_full_name }}
-                                    {% if membership.driver.user == request.user %}
+                                    {{ membership.user.get_full_name }}
+                                    {% if membership.user == request.user %}
                                     <span class="badge bg-secondary">You</span>
                                     {% endif %}
                                 </td>
                                 <td>{{ membership.role }}</td>
                                 <td>{{ membership.created_at|date:"M d, Y" }}</td>
-                                {% if can_manage or membership.driver.user == request.user %}
+                                {% if is_owner or membership.user == request.user %}
                                 <td>
                                     <form method="post" action="{% url 'teams:remove_member' membership.id %}" 
                                           style="display: inline;">
@@ -104,32 +96,126 @@
                 {% endif %}
             </div>
         </div>
+
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Races ({{ race_entries.count }})</h5>
+                {% if is_owner and available_races %}
+                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#enterRaceModal">
+                    <i class="bi bi-flag"></i> Enter Race
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if race_entries %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Race</th>
+                                <th>Track</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in race_entries %}
+                            <tr>
+                                <td>{{ entry.race.name }}</td>
+                                <td>{{ entry.race.track_name }}</td>
+                                <td>{{ entry.race.start_time|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <a href="{% url 'races:detail' entry.race.id %}" class="btn btn-sm btn-outline-primary">
+                                        View Race
+                                    </a>
+                                    {% if is_owner %}
+                                    <form method="post" action="{% url 'teams:withdraw' entry.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            Withdraw
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-center">This team isn't entered in any races yet.</p>
+                {% if is_owner and available_races %}
+                <div class="text-center mt-3">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#enterRaceModal">
+                        Enter a Race
+                    </button>
+                </div>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
     </div>
     
     <div class="col-md-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Race Information</h5>
+                <h5 class="card-title mb-0">Team Stats</h5>
             </div>
             <div class="card-body">
-                <p><i class="bi bi-flag"></i> <strong>Race:</strong> {{ race.name }}</p>
-                <p><i class="bi bi-map"></i> <strong>Track:</strong> {{ race.track_name }}</p>
-                <p><i class="bi bi-calendar-event"></i> <strong>Start:</strong> {{ race.start_time|date:"F j, Y" }}</p>
-                <p><i class="bi bi-clock"></i> <strong>Start Time:</strong> {{ race.start_time|date:"H:i" }}</p>
-                <p><i class="bi bi-hourglass-split"></i> <strong>Duration:</strong> {{ race.duration_hours }} hours</p>
-                <p><i class="bi bi-person"></i> <strong>Organizer:</strong> {{ race.created_by.get_full_name }}</p>
-                
+                <p><i class="bi bi-people"></i> <strong>Members:</strong> {{ memberships.count }}</p>
+                <p><i class="bi bi-flag"></i> <strong>Races:</strong> {{ race_entries.count }}</p>
+                <p><i class="bi bi-calendar"></i> <strong>Created:</strong> {{ team.created_at|date:"F j, Y" }}</p>
+                {% if not is_member and not is_owner %}
                 <div class="d-grid gap-2 mt-3">
-                    <a href="{% url 'races:detail' race.id %}" class="btn btn-outline-primary">
-                        View Race Details
-                    </a>
+                    <form method="post" action="{% url 'teams:add_member' team.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="role" value="Driver">
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-person-plus"></i> Join Team
+                        </button>
+                    </form>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>
 </div>
 
-{% if can_manage and available_drivers %}
+{% if is_owner and available_races %}
+<!-- Enter Race Modal -->
+<div class="modal fade" id="enterRaceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Enter Race</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'teams:enter_race' team.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="race" class="form-label">Select Race</label>
+                        <select name="race_id" id="race" class="form-control" required>
+                            <option value="">-- Select a race --</option>
+                            {% for race in available_races %}
+                            <option value="{{ race.id }}">
+                                {{ race.name }} - {{ race.start_time|date:"M d, Y H:i" }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Enter Race</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if is_owner %}
 <!-- Add Member Modal -->
 <div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -142,15 +228,9 @@
                 {% csrf_token %}
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="driver" class="form-label">Select Driver</label>
-                        <select name="driver_id" id="driver" class="form-control" required>
-                            <option value="">-- Select a driver --</option>
-                            {% for driver in available_drivers %}
-                            <option value="{{ driver.id }}">
-                                {{ driver.user.get_full_name }}
-                            </option>
-                            {% endfor %}
-                        </select>
+                        <label for="user_email" class="form-label">User Email</label>
+                        <input type="email" name="user_email" id="user_email" class="form-control" required>
+                        <div class="form-text">Enter the email of the user you want to add to the team.</div>
                     </div>
                     <div class="mb-3">
                         <label for="role" class="form-label">Role</label>
@@ -166,9 +246,7 @@
         </div>
     </div>
 </div>
-{% endif %}
 
-{% if can_manage %}
 <!-- Delete Team Modal -->
 <div class="modal fade" id="deleteTeamModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">

@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from .models import Race, RaceDriver, DrivingAssignment
 from .forms import RaceForm
 from django.contrib import messages
+from teams.models import TeamMembership, Team
 
 @login_required
 def race_list(request):
@@ -48,6 +49,7 @@ def race_create(request):
     return render(request, 'races/race_form.html', {'form': form, 'title': 'Create Race'})
 
 
+# races/views.py - Add this to the race_detail view
 @login_required
 def race_detail(request, pk):
     """View detailed information about a specific race."""
@@ -56,10 +58,21 @@ def race_detail(request, pk):
     # Check if user is a driver in this race
     user_driver = RaceDriver.objects.filter(race=race, user=request.user).first()
     
+    # Check if race has a team
+    try:
+        team = race.team
+        has_team = True
+    except Team.DoesNotExist:
+        team = None
+        has_team = False
+    
+    # Get team members if team exists
+    team_members = TeamMembership.objects.filter(team=team).select_related('user') if team else []
+    
     # Get all drivers for this race
     drivers = RaceDriver.objects.filter(race=race).select_related('user')
     
-    # Get all driving assignments for this race, ordered by start time
+    # Get all driving assignments for this race
     assignments = DrivingAssignment.objects.filter(
         race_driver__race=race
     ).select_related('race_driver', 'race_driver__user').order_by('start_time')
@@ -67,13 +80,22 @@ def race_detail(request, pk):
     # Check if user is the creator of the race
     is_creator = race.created_by == request.user
     
+    # Check if user is already a team member
+    is_team_member = user_driver and team and TeamMembership.objects.filter(
+        team=team, user=request.user
+    ).exists()
+    
     context = {
         'race': race,
         'user_driver': user_driver,
         'drivers': drivers,
         'assignments': assignments,
         'is_creator': is_creator,
-        'can_join': not user_driver and not is_creator,
+        'can_join': user_driver and not is_team_member,
+        'team': team,
+        'has_team': has_team,
+        'team_members': team_members,
+        'is_team_member': is_team_member,
     }
     return render(request, 'races/race_detail.html', context)
 

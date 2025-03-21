@@ -6,10 +6,10 @@ from races.models import Race, RaceDriver
 
 class Team(UUIDModel):
     name = models.CharField(max_length=100)
-    race = models.ForeignKey(
+    race = models.OneToOneField(
         Race,
         on_delete=models.CASCADE,
-        related_name='teams'
+        related_name='team'
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -18,12 +18,8 @@ class Team(UUIDModel):
     )
     description = models.TextField(blank=True)
     
-    class Meta:
-        unique_together = ['race', 'name']
-    
     def __str__(self):
         return f"{self.name} - {self.race.name}"
-
 
 class TeamMembership(UUIDModel):
     team = models.ForeignKey(
@@ -31,8 +27,8 @@ class TeamMembership(UUIDModel):
         on_delete=models.CASCADE,
         related_name='memberships'
     )
-    driver = models.ForeignKey(
-        RaceDriver,
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='team_memberships'
     )
@@ -43,7 +39,4 @@ class TeamMembership(UUIDModel):
     )
     
     class Meta:
-        unique_together = ['team', 'driver']
-    
-    def __str__(self):
-        return f"{self.driver.user.get_full_name()} - {self.team.name} ({self.role})"
+        unique_together = ['team', 'user']

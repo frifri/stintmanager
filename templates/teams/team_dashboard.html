@@ -1,4 +1,3 @@
-<!-- templates/teams/team_list.html -->
 {% extends "partials/base.html" %}
 {% load static %}
 
@@ -8,11 +7,6 @@
 <div class="row mb-4">
     <div class="col-md-8">
         <h1>My Teams</h1>
-    </div>
-    <div class="col-md-4 text-end">
-        <a href="{% url 'teams:create' %}" class="btn btn-primary">
-            <i class="bi bi-plus-circle"></i> Create New Team
-        </a>
     </div>
 </div>
 
@@ -27,8 +21,8 @@
                 <thead>
                     <tr>
                         <th>Team</th>
+                        <th>Race</th>
                         <th>Members</th>
-                        <th>Races</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -36,8 +30,8 @@
                     {% for team in owned_teams %}
                     <tr>
                         <td>{{ team.name }}</td>
+                        <td>{{ team.race.name }}</td>
                         <td>{{ team.memberships.count }}</td>
-                        <td>{{ team.race_entries.count }}</td>
                         <td>
                             <a href="{% url 'teams:detail' team.id %}" class="btn btn-sm btn-outline-primary">View</a>
                             <a href="{% url 'teams:edit' team.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
@@ -62,9 +56,8 @@
                 <thead>
                     <tr>
                         <th>Team</th>
+                        <th>Race</th>
                         <th>Owner</th>
-                        <th>Members</th>
-                        <th>Races</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -72,9 +65,8 @@
                     {% for team in member_teams %}
                     <tr>
                         <td>{{ team.name }}</td>
+                        <td>{{ team.race.name }}</td>
                         <td>{{ team.owner.get_full_name }}</td>
-                        <td>{{ team.memberships.count }}</td>
-                        <td>{{ team.race_entries.count }}</td>
                         <td>
                             <a href="{% url 'teams:detail' team.id %}" class="btn btn-sm btn-outline-primary">View</a>
                         </td>
@@ -87,12 +79,47 @@
 </div>
 {% endif %}
 
-{% if not owned_teams and not member_teams %}
+{% if races_without_teams %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Races Without Team</h5>
+    </div>
+    <div class="card-body">
+        <p>You're registered for these races but haven't joined a team yet:</p>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Race</th>
+                        <th>Track</th>
+                        <th>Start Time</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for race in races_without_teams %}
+                    <tr>
+                        <td>{{ race.name }}</td>
+                        <td>{{ race.track_name }}</td>
+                        <td>{{ race.start_time|date:"M d, Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'teams:list' race.id %}" class="btn btn-sm btn-outline-primary">Find Teams</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if not owned_teams and not member_teams and not races_without_teams %}
 <div class="card">
     <div class="card-body text-center">
-        <h5>You don't have any teams yet</h5>
-        <p>Create your first team to get started!</p>
-        <a href="{% url 'teams:create' %}" class="btn btn-primary">Create New Team</a>
+        <h5>You're not part of any teams yet</h5>
+        <p>Join a race first, then you can create or join a team.</p>
+        <a href="{% url 'races:list' %}" class="btn btn-primary">View Races</a>
     </div>
 </div>
 {% endif %}

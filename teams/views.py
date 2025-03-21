@@ -1,95 +1,44 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.utils import timezone
 from races.models import Race, RaceDriver
-from .models import Team, TeamMembership
-from .forms import TeamForm, TeamMembershipForm
-
-
-@login_required
-def team_list(request, race_id):
-    race = get_object_or_404(Race, pk=race_id)
-    teams = Team.objects.filter(race=race).prefetch_related('memberships__driver__user')
-    
-    # Check if user is a driver in this race
-    is_driver = RaceDriver.objects.filter(race=race, user=request.user).exists()
-    
-    # Check if user is the race creator
-    is_creator = race.created_by == request.user
-    
-    context = {
-        'race': race,
-        'teams': teams,
-        'is_driver': is_driver,
-        'is_creator': is_creator,
-    }
-    return render(request, 'teams/team_list.html', context)
-
-
-@login_required
-def team_create(request, race_id):
-    race = get_object_or_404(Race, pk=race_id)
-    
-    # Only race creator can create teams
-    if race.created_by != request.user:
-        messages.error(request, "Only the race organizer can create teams.")
-        return redirect('races:detail', pk=race.pk)
-    
-    if request.method == 'POST':
-        form = TeamForm(request.POST)
-        if form.is_valid():
-            team = form.save(commit=False)
-            team.race = race
-            team.owner = request.user
-            team.save()
-            messages.success(request, f'Team "{team.name}" created successfully!')
-            return redirect('teams:list', race_id=race.pk)
-    else:
-        form = TeamForm()
-    
-    return render(request, 'teams/team_form.html', {
-        'form': form,
-        'race': race,
-        'title': 'Create Team'
-    })
+from .models import Team, TeamMembership, TeamRaceEntry
+from .forms import TeamForm
+from core.models import User
 
 
 @login_required
 def team_detail(request, pk):
-    team = get_object_or_404(Team.objects.select_related('race', 'owner'), pk=pk)
-    race = team.race
+    """View detailed information about a specific team."""
+    team = get_object_or_404(Team.objects.select_related('owner'), pk=pk)
     
     # Get all memberships for this team
-    memberships = TeamMembership.objects.filter(team=team).select_related('driver__user')
+    memberships = TeamMembership.objects.filter(team=team).select_related('user')
     
-    # Get drivers in the race who are not yet in this team
-    available_drivers = RaceDriver.objects.filter(
-        race=race
-    ).exclude(
-        team_memberships__team=team
-    ).select_related('user')
+    # Get all race entries for this team
+    race_entries = TeamRaceEntry.objects.filter(team=team).select_related('race')
+    
+    # Check if the user is a member of this team
+    is_member = team.memberships.filter(user=request.user).exists()
     
     # Check permissions
     is_owner = team.owner == request.user
-    is_race_creator = race.created_by == request.user
-    can_manage = is_owner or is_race_creator
     
-    # Check if the user is a driver in this race but not in this team
-    user_driver = RaceDriver.objects.filter(race=race, user=request.user).first()
-    can_join = user_driver and not TeamMembership.objects.filter(
-        team=team, driver=user_driver
-    ).exists()
+    # Find races the team could enter
+    available_races = Race.objects.exclude(
+        team_entries__team=team
+    ).filter(
+        start_time__gt=timezone.now()  # Only future races
+    ).order_by('start_time')
     
     context = {
         'team': team,
-        'race': race,
         'memberships': memberships,
-        'available_drivers': available_drivers,
+        'race_entries': race_entries,
+        'is_member': is_member,
         'is_owner': is_owner,
-        'is_race_creator': is_race_creator,
-        'can_manage': can_manage,
-        'can_join': can_join,
-        'user_driver': user_driver,
+        'available_races': available_races,
     }
     return render(request, 'teams/team_detail.html', context)
 
@@ -144,36 +93,36 @@ def team_delete(request, pk):
 
 @login_required
 def add_member(request, team_id):
+    """Add a member to a team"""
     team = get_object_or_404(Team, pk=team_id)
-    race = team.race
     
     # Check permissions
-    if team.owner != request.user and race.created_by != request.user:
-        messages.error(request, "You don't have permission to add members to this team.")
+    if team.owner != request.user:
+        messages.error(request, "Only the team owner can add members.")
         return redirect('teams:detail', pk=team.pk)
     
     if request.method == 'POST':
-        driver_id = request.POST.get('driver_id')
+        user_email = request.POST.get('user_email')
         role = request.POST.get('role', 'Driver')
         
         try:
-            driver = RaceDriver.objects.get(pk=driver_id, race=race)
+            user = User.objects.get(email=user_email)
             
-            # Check if driver is already in this team
-            if TeamMembership.objects.filter(team=team, driver=driver).exists():
-                messages.warning(request, f"{driver.user.get_full_name()} is already in this team.")
+            # Check if user is already in this team
+            if TeamMembership.objects.filter(team=team, user=user).exists():
+                messages.warning(request, f"{user.get_full_name()} is already in this team.")
             else:
                 TeamMembership.objects.create(
                     team=team,
-                    driver=driver,
+                    user=user,
                     role=role
                 )
                 messages.success(
                     request, 
-                    f"{driver.user.get_full_name()} added to {team.name} as {role}."
+                    f"{user.get_full_name()} added to {team.name} as {role}."
                 )
-        except RaceDriver.DoesNotExist:
-            messages.error(request, "Invalid driver selected.")
+        except User.DoesNotExist:
+            messages.error(request, f"No user found with email {user_email}.")
         
         return redirect('teams:detail', pk=team.pk)
     
@@ -207,25 +156,265 @@ def remove_member(request, membership_id):
 
 @login_required
 def join_team(request, team_id):
+    """Join a team for a race"""
     team = get_object_or_404(Team, pk=team_id)
     race = team.race
     
-    # Get the user's driver record for this race
+    # Check if user is a driver in this race
     user_driver = get_object_or_404(RaceDriver, race=race, user=request.user)
     
     # Check if already in the team
-    if TeamMembership.objects.filter(team=team, driver=user_driver).exists():
+    if TeamMembership.objects.filter(team=team, user=request.user).exists():
         messages.info(request, f"You're already a member of {team.name}.")
-        return redirect('teams:detail', pk=team.pk)
+        return redirect('races:detail', pk=race.pk)
     
     if request.method == 'POST':
         # Add the user to the team
         TeamMembership.objects.create(
             team=team,
-            driver=user_driver,
+            user=request.user,
             role='Driver'  # Default role
         )
         messages.success(request, f"You've joined {team.name}!")
+        return redirect('races:detail', pk=race.pk)
+    
+    return redirect('races:detail', pk=race.pk)
+
+
+@login_required
+def team_dashboard(request):
+    """Dashboard showing all teams the user is involved with."""
+    # Teams the user owns
+    owned_teams = Team.objects.filter(owner=request.user).select_related('race')
+    
+    # Teams the user is a member of (but doesn't own)
+    user_drivers = RaceDriver.objects.filter(user=request.user)
+    member_teams = Team.objects.filter(
+        memberships__driver__in=user_drivers
+    ).exclude(
+        owner=request.user  # Exclude teams the user owns to avoid duplication
+    ).select_related('race').distinct()
+    
+    # Races where the user is a driver but hasn't joined a team
+    races_without_teams = Race.objects.filter(
+        drivers__user=request.user
+    ).exclude(
+        id__in=owned_teams.values_list('race_id', flat=True)
+    ).exclude(
+        id__in=member_teams.values_list('race_id', flat=True)
+    ).distinct()
+    
+    context = {
+        'owned_teams': owned_teams,
+        'member_teams': member_teams,
+        'races_without_teams': races_without_teams,
+    }
+    return render(request, 'teams/team_dashboard.html', context)
+
+
+@login_required
+def team_list(request):
+    """View all teams the user owns or is a member of"""
+    # Teams owned by the user
+    owned_teams = Team.objects.filter(owner=request.user)
+    
+    # Teams the user is a member of but does not own
+    member_teams = Team.objects.filter(
+        memberships__user=request.user
+    ).exclude(
+        owner=request.user
+    )
+    
+    context = {
+        'owned_teams': owned_teams,
+        'member_teams': member_teams,
+    }
+    return render(request, 'teams/team_list.html', context)
+
+@login_required
+def team_create(request):
+    """Create a new team"""
+    if request.method == 'POST':
+        form = TeamForm(request.POST)
+        if form.is_valid():
+            team = form.save(commit=False)
+            team.owner = request.user
+            team.save()
+            
+            # Automatically add creator as a team member with "Team Manager" role
+            TeamMembership.objects.create(
+                team=team,
+                user=request.user,
+                role='Team Manager'
+            )
+            
+            messages.success(request, f'Team "{team.name}" created successfully!')
+            return redirect('teams:detail', pk=team.pk)
+    else:
+        form = TeamForm()
+    
+    return render(request, 'teams/team_form.html', {
+        'form': form, 
+        'title': 'Create Team'
+    })
+
+@login_required
+def enter_race(request, team_id):
+    """Enter a team into a race"""
+    team = get_object_or_404(Team, pk=team_id)
+    
+    # Check permissions
+    if team.owner != request.user:
+        messages.error(request, "Only the team owner can enter races.")
         return redirect('teams:detail', pk=team.pk)
     
-    return redirect('teams:detail', pk=team.pk)
+    if request.method == 'POST':
+        race_id = request.POST.get('race_id')
+        try:
+            race = Race.objects.get(pk=race_id)
+            
+            # Check if already entered
+            if TeamRaceEntry.objects.filter(team=team, race=race).exists():
+                messages.warning(request, f"{team.name} is already entered in {race.name}.")
+            else:
+                TeamRaceEntry.objects.create(team=team, race=race)
+                messages.success(request, f"{team.name} has been entered in {race.name}!")
+                
+                # For each team member, we should create a RaceDriver record if they don't have one
+                for membership in team.memberships.all():
+                    if not RaceDriver.objects.filter(race=race, user=membership.user).exists():
+                        # Create with default timezone, can be updated later
+                        RaceDriver.objects.create(
+                            race=race,
+                            user=membership.user,
+                            timezone='UTC'
+                        )
+        except Race.DoesNotExist:
+            messages.error(request, "Invalid race selected.")
+        
+        return redirect('teams:detail', pk=team.pk)
+    
+    # If GET, show form with available races
+    available_races = Race.objects.exclude(
+        team_entries__team=team
+    ).order_by('start_time')
+    
+    context = {
+        'team': team,
+        'available_races': available_races,
+    }
+    return render(request, 'teams/enter_race.html', context)
+
+@login_required
+def withdraw_from_race(request, entry_id):
+    """Withdraw a team from a race"""
+    entry = get_object_or_404(TeamRaceEntry, pk=entry_id)
+    team = entry.team
+    race = entry.race
+    
+    # Check permissions
+    if team.owner != request.user:
+        messages.error(request, "Only the team owner can withdraw from races.")
+        return redirect('teams:detail', pk=team.pk)
+    
+    if request.method == 'POST':
+        # Store names for success message
+        team_name = team.name
+        race_name = race.name
+        
+        # Delete the entry
+        entry.delete()
+        
+        messages.success(request, f"{team_name} has been withdrawn from {race_name}.")
+        return redirect('teams:detail', pk=team.pk)
+    
+    # If GET, show confirmation page
+    context = {
+        'team': team,
+        'race': race,
+        'entry': entry,
+    }
+    return render(request, 'teams/confirm_withdraw.html', context)
+
+@login_required
+def team_list(request):
+    """View all teams the user owns or is a member of"""
+    # Teams owned by the user
+    owned_teams = Team.objects.filter(owner=request.user).prefetch_related('memberships', 'race_entries')
+    
+    # Teams the user is a member of but does not own
+    member_teams = Team.objects.filter(
+        memberships__user=request.user
+    ).exclude(
+        owner=request.user
+    ).select_related('owner').prefetch_related('memberships', 'race_entries')
+    
+    context = {
+        'owned_teams': owned_teams,
+        'member_teams': member_teams,
+    }
+    return render(request, 'teams/team_list.html', context)
+
+@login_required
+def race_teams(request, race_id):
+    """View teams participating in a specific race"""
+    race = get_object_or_404(Race, pk=race_id)
+    teams = Team.objects.filter(
+        race_entries__race=race
+    ).select_related('owner').prefetch_related('memberships')
+    
+    # Check if user is the race creator
+    is_creator = race.created_by == request.user
+    
+    context = {
+        'race': race,
+        'teams': teams,
+        'is_creator': is_creator,
+    }
+    return render(request, 'teams/race_teams.html', context)
+
+
+@login_required
+def create_for_race(request, race_id):
+    """Create a team for a specific race"""
+    race = get_object_or_404(Race, pk=race_id)
+    
+    # Check if user is allowed to create a team for this race
+    if race.created_by != request.user:
+        messages.error(request, "Only the race organizer can create a team.")
+        return redirect('races:detail', pk=race.pk)
+    
+    # Check if race already has a team
+    try:
+        team = race.team
+        messages.warning(request, f"This race already has a team: {team.name}")
+        return redirect('races:detail', pk=race.pk)
+    except Team.DoesNotExist:
+        pass
+    
+    if request.method == 'POST':
+        form = TeamForm(request.POST)
+        if form.is_valid():
+            team = form.save(commit=False)
+            team.race = race
+            team.owner = request.user
+            team.save()
+            
+            # Automatically add creator as a team member
+            TeamMembership.objects.create(
+                team=team,
+                user=request.user,
+                role='Team Manager'
+            )
+            
+            messages.success(request, f'Team "{team.name}" created successfully!')
+            return redirect('races:detail', pk=race.pk)
+    else:
+        # Pre-fill with race name as default team name
+        form = TeamForm(initial={'name': f"{race.name} Team"})
+    
+    return render(request, 'teams/team_form.html', {
+        'form': form,
+        'race': race,
+        'title': 'Create Team for Race'
+    })

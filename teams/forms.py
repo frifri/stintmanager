@@ -17,12 +17,12 @@ class TeamForm(forms.ModelForm):
             self.fields[field].widget.attrs['class'] = 'form-control'
 
 
-class TeamMembershipForm(forms.ModelForm):
+class TeamForm(forms.ModelForm):
     class Meta:
-        model = TeamMembership
-        fields = ['role']
+        model = Team
+        fields = ['name', 'description']
         widgets = {
-            'role': forms.TextInput(),
+            'description': forms.Textarea(attrs={'rows': 3}),
         }
 
     def __init__(self, *args, **kwargs):

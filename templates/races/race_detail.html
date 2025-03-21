@@ -5,27 +5,30 @@
 {% block title %}{{ race.name }} - StintManager{% endblock %}
 
 {% block content %}
-<div class="col-md-4 text-end">
-  <a href="{% url 'teams:list' race.id %}" class="btn btn-outline-primary me-2">
-      <i class="bi bi-people"></i> Teams
-  </a>
-  {% if is_creator %}
-    <a href="{% url 'races:edit' race.id %}" class="btn btn-outline-secondary">
-      <i class="bi bi-pencil"></i> Edit Race
-    </a>
-    <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteRaceModal">
-      <i class="bi bi-trash"></i> Delete
-    </button>
-  {% elif can_join %}
-    <form method="post" action="#">
-      {% csrf_token %}
-      <button type="submit" class="btn btn-success">
-        <i class="bi bi-person-plus"></i> Join Race
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h1>{{ race.name }}</h1>
+    <h5 class="text-muted">{{ race.track_name }}</h5>
+  </div>
+  <div class="col-md-4 text-end">
+    {% if is_creator %}
+      <a href="{% url 'races:edit' race.id %}" class="btn btn-outline-secondary">
+        <i class="bi bi-pencil"></i> Edit Race
+      </a>
+      <button class="btn btn-outline-danger ms-2" data-bs-toggle="modal" data-bs-target="#deleteRaceModal">
+        <i class="bi bi-trash"></i> Delete
       </button>
-    </form>
-  {% elif user_driver %}
-    <span class="badge bg-success">You're participating</span>
-  {% endif %}
+    {% elif can_join %}
+      <form method="post" action="#">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">
+          <i class="bi bi-person-plus"></i> Join Race
+        </button>
+      </form>
+    {% elif user_driver %}
+      <span class="badge bg-success">You're participating</span>
+    {% endif %}
+  </div>
 </div>
 
 <div class="row">
@@ -56,6 +59,93 @@
         {% endif %}
       </div>
     </div>
+    
+    {% if has_team %}
+      <!-- Show team information -->
+      <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h5 class="card-title mb-0">Team: {{ team.name }}</h5>
+          {% if is_creator %}
+          <a href="{% url 'teams:edit' team.id %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i> Edit Team
+          </a>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if team.description %}
+          <p>{{ team.description }}</p>
+          {% endif %}
+          
+          <h6 class="mt-3">Team Members</h6>
+          {% if team_members %}
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>Role</th>
+                  {% if is_creator %}
+                  <th>Actions</th>
+                  {% endif %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for membership in team_members %}
+                <tr>
+                  <td>
+                    {{ membership.user.get_full_name }}
+                    {% if membership.user == request.user %}
+                    <span class="badge bg-secondary">You</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ membership.role }}</td>
+                  {% if is_creator and membership.user != request.user %}
+                  <td>
+                    <form method="post" action="{% url 'teams:remove_member' membership.id %}" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                    </form>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <p>No members in this team yet.</p>
+          {% endif %}
+          
+          {% if is_creator %}
+          <div class="mt-3">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
+              <i class="bi bi-person-plus"></i> Add Member
+            </button>
+          </div>
+          {% elif can_join %}
+          <div class="mt-3">
+            <form method="post" action="{% url 'teams:join_team' team.id %}">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-success">
+                <i class="bi bi-person-plus"></i> Join Team
+              </button>
+            </form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    {% elif is_creator %}
+      <!-- Show create team option for race creator -->
+      <div class="card mb-4">
+        <div class="card-body text-center">
+          <h5>This race doesn't have a team yet</h5>
+          <p>Create a team to invite drivers and plan your stints together.</p>
+          <a href="{% url 'teams:create_for_race' race.id %}" class="btn btn-primary">
+            <i class="bi bi-people"></i> Create Team
+          </a>
+        </div>
+      </div>
+    {% endif %}
     
     {% if drivers %}
     <div class="card mb-4">
@@ -270,6 +360,39 @@
           <button type="submit" class="btn btn-danger">Delete Race</button>
         </form>
       </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Add Member Modal -->
+{% if is_creator and has_team %}
+<div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Add Team Member</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'teams:add_member' team.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="user_email" class="form-label">User Email</label>
+            <input type="email" name="user_email" id="user_email" class="form-control" required>
+            <div class="form-text">Enter the email of the user you want to add to the team.</div>
+          </div>
+          <div class="mb-3">
+            <label for="role" class="form-label">Role</label>
+            <input type="text" name="role" id="role" class="form-control" 
+                  value="Driver" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Member</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

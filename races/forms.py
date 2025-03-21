@@ -32,7 +32,7 @@ class RaceForm(forms.ModelForm):
                 self.initial['start_time'] = kwargs['instance'].start_time.strftime('%Y-%m-%dT%H:%M')
 
     def clean_start_time(self):
-        start_time = self.cleaned_data['start_time']
-        if start_time < timezone.now():
+        start_time = self.cleaned_data.get('start_time')
+        if start_time and start_time < timezone.now():
             raise forms.ValidationError("Race cannot start in the past")
         return start_time

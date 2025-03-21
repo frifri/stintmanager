@@ -24,7 +24,7 @@ class Race(UUIDModel):
         return self.start_time + timezone.timedelta(hours=self.duration_hours)
 
     def clean(self):
-        if self.start_time < timezone.now():
+        if self.start_time is not None and self.start_time < timezone.now():
             raise ValidationError("Race cannot start in the past")
 
     def __str__(self):
