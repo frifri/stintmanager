@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.db import models
 from core.models import UUIDModel
-from races.models import Race, RaceDriver
 
 
 class Team(UUIDModel):
